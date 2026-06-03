@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Status](https://img.shields.io/badge/status-v0.1--alpha-orange.svg)](#project-status)
+[![Status](https://img.shields.io/badge/status-v0.2--alpha-orange.svg)](#project-status)
 
 > A multi-agent platform that generates monthly CFO-style memos for a portfolio of companies — peer-benchmarked against SEC EDGAR data, synthesized by Claude, and gated by human approval before delivery.
 
@@ -41,11 +41,74 @@ The trust boundary. Before any memo is delivered, it's surfaced to a human revie
 
 ## Quick start
 
-_Coming in v0.2. For now this repo is structural._
+### Prerequisites
+
+- Python 3.11 or higher
+- An Anthropic API key — [create one in the Anthropic console](https://console.anthropic.com/settings/keys)
+
+### Installation
+
+```bash
+# Clone the repo
+git clone https://github.com/ajstehle2001/multi-agent-cfo.git
+cd multi-agent-cfo
+
+# Create and activate a virtual environment
+python -m venv venv
+
+# Activate (pick the line for your shell)
+source venv/bin/activate         # Linux / macOS
+.\venv\Scripts\Activate.ps1      # Windows PowerShell
+
+# Install the project + dev dependencies in editable mode
+pip install -e ".[dev]"
+```
+
+### Configuration
+
+Copy the example environment file and add your API key:
+
+```bash
+cp .env.example .env             # Linux / macOS
+copy .env.example .env           # Windows
+```
+
+Open `.env` and replace the placeholder with your real Anthropic API key. The `.env` file is gitignored — your key stays local.
+
+### Run
+
+```bash
+python -m multi_agent_cfo
+```
+
+What happens:
+
+1. The scheduler loads the demo client list from `clients/clients.yaml` (Costco, Best Buy, Etsy by default).
+2. For each client: SEC EDGAR lookup → Claude synthesis → schema validation against the `CFOMemo` Pydantic model.
+3. Each memo is rendered in the console and you're prompted to **a**pprove, **r**eject, or **revise**.
+4. A run summary prints at the end with per-decision counts and total token usage.
+
+Cost is approximately $0.01–0.03 per memo at current Claude Sonnet pricing.
+
+### Customizing the client list
+
+Edit `clients/clients.yaml` with any public US company ticker that appears in SEC EDGAR's registry:
+
+```yaml
+clients:
+  - ticker: AAPL
+    name: Apple Inc.
+  - ticker: NVDA
+    name: NVIDIA Corporation
+  - ticker: SBUX
+    name: Starbucks Corporation
+```
+
+Re-run `python -m multi_agent_cfo` and the new client list takes effect.
 
 ## Project status
 
-**v0.1-alpha** — scaffold and README only. Active build in progress.
+**v0.2-alpha** — end-to-end pipeline working. SEC EDGAR data + Claude synthesis + human-in-the-loop confirmation, runnable with a single command. Active build in progress.
 
 See [ROADMAP.md](ROADMAP.md) for the milestone plan.
 
