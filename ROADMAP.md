@@ -8,20 +8,20 @@ This document tracks planned work for `multi-agent-cfo`. Each milestone is scope
 - [x] README with architecture overview and design principles
 - [x] Roadmap committed
 
-## v0.2 — Working Reference Implementation
+## v0.2 — Working Reference Implementation ✅
 
 Goal: someone can clone the repo, plug in a Claude API key, run `python -m multi_agent_cfo`, and see a CFO memo for a real public company appear in the console.
 
-- [ ] Project skeleton (`src/`, `tests/`, `clients/`, `prompts/`)
-- [ ] Intelligence Layer
-  - [ ] SIC code lookup module
-  - [ ] SEC EDGAR peer fetcher (with timeout + retry)
-  - [ ] Claude synthesis client (structured output)
-- [ ] Scheduler with `clients.yaml` config + asyncio loop
-- [ ] Confirmation Gate with console adapter (approve / reject / revise)
-- [ ] Three demo clients (Costco, Best Buy, Etsy)
-- [ ] Quick start documentation in README
-- [ ] Basic eval: output schema validation + one LLM-as-judge check
+- [x] Project skeleton (`src/`, `tests/`, `clients/`, `prompts/`)
+- [x] Intelligence Layer
+  - [x] SIC code lookup module
+  - [x] SEC EDGAR peer fetcher (with timeout + retry)
+  - [x] Claude synthesis client (structured output)
+- [x] Scheduler with `clients.yaml` config + asyncio loop
+- [x] Confirmation Gate with console adapter (approve / reject / revise)
+- [x] Three demo clients (Costco, Best Buy, Etsy)
+- [x] Quick start documentation in README
+- [x] Basic eval: output schema validation + LLM-as-judge sanity check
 
 ## v0.3 — Pluggability and Reliability
 
@@ -56,4 +56,4 @@ Not committed, just where the project could go:
 
 ---
 
-*Last updated: May 2026. Status updates committed alongside feature work.*
+*Last updated: June 2026. Status updates committed alongside feature work.*
