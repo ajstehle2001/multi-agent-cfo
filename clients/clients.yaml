@@ -1,0 +1,11 @@
+# Demo client configuration for multi-agent-cfo.
+# Each client is a public company we'll generate a CFO memo for.
+# Tickers must match SEC EDGAR's registry (uppercase US stock tickers).
+
+clients:
+  - ticker: COST
+    name: Costco Wholesale Corporation
+  - ticker: BBY
+    name: Best Buy Co. Inc.
+  - ticker: ETSY
+    name: Etsy Inc.
