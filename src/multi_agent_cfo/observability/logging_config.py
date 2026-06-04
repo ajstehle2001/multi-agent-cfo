@@ -163,4 +163,13 @@ def configure_logging(
     json_handler.addFilter(CorrelationFilter())
     root.addHandler(json_handler)
 
+    # Suppress noisy third-party loggers. httpcore emits TLS-handshake
+    # DEBUG events, and anthropic._base_client at DEBUG dumps the full
+    # request body — including the complete system prompt — into every
+    # log file. Prompts are IP and shouldn't land in logs implicitly.
+    # httpx stays at INFO so request summary lines remain available for
+    # correlation.
+    for noisy in ("httpcore", "anthropic._base_client"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
     return log_path
