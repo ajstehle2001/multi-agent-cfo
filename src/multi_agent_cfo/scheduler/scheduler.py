@@ -1,11 +1,11 @@
-"""Scheduler: orchestrate memo generation for all configured clients.
+﻿"""Scheduler: orchestrate memo generation for all configured clients.
 
 Reads client configuration from clients/clients.yaml, runs the full
-Intelligence Layer → LLM-as-judge → Confirmation Gate → Output pipeline
+Intelligence Layer -> LLM-as-judge -> Confirmation Gate -> Output pipeline
 for each client, and aggregates results into a run summary.
 
 Single-client failures are logged but do not terminate the run.
-Output failures are also non-fatal — the decision is still recorded;
+Output failures are also non-fatal -- the decision is still recorded;
 only the delivery side-effect is lost.
 
 All operational events flow through the structured logger and carry
@@ -139,15 +139,7 @@ def run_scheduler(
     edgar: EdgarClient | None = None,
     llm: LLM | None = None,
 ) -> RunSummary:
-    """Run synthesis + judge + confirmation + output for every client.
-
-    Single-client failures are caught and recorded; they don't terminate
-    the run. Output failures are also non-fatal — the decision still
-    counts, only the delivery side-effect is lost.
-
-    The edgar and llm parameters allow tests to inject fakes that satisfy
-    the same interfaces without making real network calls.
-    """
+    """Run synthesis + judge + confirmation + output for every client."""
     log_path = configure_logging()
     run_id = uuid.uuid4().hex[:12]
 
@@ -176,7 +168,6 @@ def run_scheduler(
                         client.ticker, label, idx, len(clients),
                     )
 
-                    # 1. Synthesize the memo
                     try:
                         synthesis = synthesize_memo(client.ticker, edgar=edgar, llm=llm)
                         logger.info(
@@ -203,7 +194,6 @@ def run_scheduler(
                         )
                         continue
 
-                    # 2. Judge the memo
                     try:
                         judgment = judge_memo(synthesis, llm=llm)
                         pass_label = "PASS" if judgment.scores.passes else "FAIL"
@@ -227,3 +217,104 @@ def run_scheduler(
                         )
                     except Exception as exc:
                         logger.warning(
+                            "Judge failed (continuing): %s", exc,
+                            extra={"stage": "judge"},
+                        )
+                        judgment = None
+
+                    response = adapter.confirm(synthesis)
+                    logger.info(
+                        "Decision: %s", response.decision.value,
+                        extra={"stage": "gate", "decision": response.decision.value},
+                    )
+
+                    delivered = False
+                    if response.decision == Decision.APPROVE:
+                        try:
+                            output.deliver(synthesis)
+                            delivered = True
+                            logger.info(
+                                "Output delivered",
+                                extra={"stage": "output"},
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "Output delivery failed: %s", exc,
+                                exc_info=True,
+                                extra={"stage": "output"},
+                            )
+
+                    summary.results.append(
+                        ClientRunResult(
+                            ticker=client.ticker,
+                            success=True,
+                            decision=response.decision,
+                            notes=response.notes,
+                            input_tokens=synthesis.input_tokens,
+                            output_tokens=synthesis.output_tokens,
+                            judge_scores=judgment.scores if judgment else None,
+                            judge_input_tokens=judgment.judge_input_tokens if judgment else 0,
+                            judge_output_tokens=judgment.judge_output_tokens if judgment else 0,
+                            delivered=delivered,
+                        )
+                    )
+
+        finally:
+            edgar.close()
+
+        logger.info(
+            "Run complete: processed=%d approved=%d rejected=%d revised=%d "
+            "failed=%d delivered=%d",
+            len(summary.results),
+            summary.count_by_decision(Decision.APPROVE),
+            summary.count_by_decision(Decision.REJECT),
+            summary.count_by_decision(Decision.REVISE),
+            summary.failures,
+            summary.delivered_count,
+            extra={
+                "stage": "run_complete",
+                "processed": len(summary.results),
+                "approved": summary.count_by_decision(Decision.APPROVE),
+                "rejected": summary.count_by_decision(Decision.REJECT),
+                "revised": summary.count_by_decision(Decision.REVISE),
+                "failed": summary.failures,
+                "delivered": summary.delivered_count,
+                "synthesis_tokens_in": summary.total_input_tokens,
+                "synthesis_tokens_out": summary.total_output_tokens,
+                "judge_tokens_in": summary.total_judge_input_tokens,
+                "judge_tokens_out": summary.total_judge_output_tokens,
+            },
+        )
+
+    print()
+    print("=" * 70)
+    print(f"RUN SUMMARY  (run_id={run_id})")
+    print("=" * 70)
+    print(f"Processed: {len(summary.results)}")
+    print(f"  Approved: {summary.count_by_decision(Decision.APPROVE)}")
+    print(f"  Rejected: {summary.count_by_decision(Decision.REJECT)}")
+    print(f"  Revised:  {summary.count_by_decision(Decision.REVISE)}")
+    print(f"  Failed:   {summary.failures}")
+    print(f"  Delivered: {summary.delivered_count}")
+    print(
+        f"Synthesis tokens: {summary.total_input_tokens} in, "
+        f"{summary.total_output_tokens} out"
+    )
+    if summary.judged_count > 0:
+        mean_str = (
+            f"{summary.mean_judge_score:.2f}"
+            if summary.mean_judge_score
+            else "n/a"
+        )
+        print(
+            f"Judge tokens:     {summary.total_judge_input_tokens} in, "
+            f"{summary.total_judge_output_tokens} out"
+        )
+        print(
+            f"Judge pass rate:  {summary.judge_pass_count}/{summary.judged_count} "
+            f"(mean score {mean_str})"
+        )
+    print(f"Log file: {log_path}")
+    print()
+
+    return summary
