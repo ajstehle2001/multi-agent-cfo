@@ -29,7 +29,7 @@ Goal: every external dependency is swappable, every failure mode has a defined b
 
 - [x] Adapter interface for output channels (console, file, stub WhatsApp, stub email) via OutputAdapter Protocol
 - [x] Adapter interface for LLM client via Protocol (Claude default; OpenAI/Bedrock/local pluggable by implementing the LLM Protocol)
-- [ ] Structured logging with correlation IDs
+- [x] Structured logging with correlation IDs (JSONL to file + human-readable stderr, run_id and client ticker auto-propagated via contextvars)
 - [ ] Timeout + retry + circuit breaker on all external calls
 - [ ] Failure-mode test matrix (network failures, malformed responses, missing data)
 
