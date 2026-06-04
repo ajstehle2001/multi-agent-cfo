@@ -31,7 +31,7 @@ Goal: every external dependency is swappable, every failure mode has a defined b
 - [x] Adapter interface for LLM client via Protocol (Claude default; OpenAI/Bedrock/local pluggable by implementing the LLM Protocol)
 - [x] Structured logging with correlation IDs (JSONL to file + human-readable stderr, run_id and client ticker auto-propagated via contextvars)
 - [x] Timeout + retry + circuit breaker on all external calls (per-host circuit breakers for SEC EDGAR and Anthropic API; tenacity retry inside breaker so transient blips don't consume the failure budget; retry filter narrowed to true transient errors only)
-- [ ] Failure-mode test matrix (network failures, malformed responses, missing data)
+- [x] Failure-mode test matrix (23 tests: circuit breaker state machine, schema validation for CFOMemo and JudgeScores, scheduler integration covering synthesis failure, judge failure, output failure, reject/revise decisions, and resource cleanup)
 
 ## v1.0 — Production Maturity Signals
 
