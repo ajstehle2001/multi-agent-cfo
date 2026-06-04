@@ -6,6 +6,11 @@
 
 > A multi-agent platform that generates monthly CFO-style memos for a portfolio of companies — peer-benchmarked against SEC EDGAR data, synthesized by Claude, and gated by human approval before delivery.
 
+## Documentation
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system overview, layers, trust boundaries, failure model, extension points.
+- [`docs/adr/`](docs/adr/) — Architecture Decision Records explaining the rationale behind key design choices.
+
 ## Why this exists
 
 Most LLM agent demos are either toys (chatbots) or black boxes (single-agent monoliths). This project is a reference implementation of a different pattern: a **production-shaped, confirmation-gated, multi-agent workflow** that does real work against real data — and is structured so the human stays in control.
