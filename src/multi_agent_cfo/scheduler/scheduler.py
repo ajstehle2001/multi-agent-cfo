@@ -12,6 +12,10 @@ All operational events flow through the structured logger and carry
 run_id + client correlation IDs (see observability.logging_config).
 Interactive UI (memo display, approve/reject prompt, final run summary
 banner) stays on stdout via print().
+
+The edgar and llm parameters of run_scheduler are dependency-injection
+seams: tests pass fakes that satisfy the same interfaces without making
+real network calls.
 """
 
 from __future__ import annotations
@@ -30,7 +34,7 @@ from multi_agent_cfo.gate.gate import (
     Decision,
 )
 from multi_agent_cfo.intelligence.edgar import EdgarClient
-from multi_agent_cfo.intelligence.llm import LLMClient
+from multi_agent_cfo.intelligence.llm import LLM, LLMClient
 from multi_agent_cfo.intelligence.synthesis import synthesize_memo
 from multi_agent_cfo.observability.logging_config import (
     client_context,
@@ -132,12 +136,17 @@ def run_scheduler(
     clients_path: Path = DEFAULT_CLIENTS_PATH,
     adapter: ConfirmationAdapter | None = None,
     output: OutputAdapter | None = None,
+    edgar: EdgarClient | None = None,
+    llm: LLM | None = None,
 ) -> RunSummary:
     """Run synthesis + judge + confirmation + output for every client.
 
     Single-client failures are caught and recorded; they don't terminate
     the run. Output failures are also non-fatal — the decision still
     counts, only the delivery side-effect is lost.
+
+    The edgar and llm parameters allow tests to inject fakes that satisfy
+    the same interfaces without making real network calls.
     """
     log_path = configure_logging()
     run_id = uuid.uuid4().hex[:12]
@@ -155,8 +164,8 @@ def run_scheduler(
             extra={"client_count": len(clients)},
         )
 
-        edgar = EdgarClient()
-        llm = LLMClient()
+        edgar = edgar or EdgarClient()
+        llm = llm or LLMClient()
 
         try:
             for idx, client in enumerate(clients, start=1):
@@ -218,107 +227,3 @@ def run_scheduler(
                         )
                     except Exception as exc:
                         logger.warning(
-                            "Judge failed (continuing): %s", exc,
-                            extra={"stage": "judge"},
-                        )
-                        judgment = None
-
-                    # 3. Human confirmation gate (interactive UI via print/stdin)
-                    response = adapter.confirm(synthesis)
-                    logger.info(
-                        "Decision: %s", response.decision.value,
-                        extra={"stage": "gate", "decision": response.decision.value},
-                    )
-
-                    # 4. Output delivery for approved memos only
-                    delivered = False
-                    if response.decision == Decision.APPROVE:
-                        try:
-                            output.deliver(synthesis)
-                            delivered = True
-                            logger.info(
-                                "Output delivered",
-                                extra={"stage": "output"},
-                            )
-                        except Exception as exc:
-                            logger.warning(
-                                "Output delivery failed: %s", exc,
-                                exc_info=True,
-                                extra={"stage": "output"},
-                            )
-
-                    summary.results.append(
-                        ClientRunResult(
-                            ticker=client.ticker,
-                            success=True,
-                            decision=response.decision,
-                            notes=response.notes,
-                            input_tokens=synthesis.input_tokens,
-                            output_tokens=synthesis.output_tokens,
-                            judge_scores=judgment.scores if judgment else None,
-                            judge_input_tokens=judgment.judge_input_tokens if judgment else 0,
-                            judge_output_tokens=judgment.judge_output_tokens if judgment else 0,
-                            delivered=delivered,
-                        )
-                    )
-
-        finally:
-            edgar.close()
-
-        logger.info(
-            "Run complete: processed=%d approved=%d rejected=%d revised=%d "
-            "failed=%d delivered=%d",
-            len(summary.results),
-            summary.count_by_decision(Decision.APPROVE),
-            summary.count_by_decision(Decision.REJECT),
-            summary.count_by_decision(Decision.REVISE),
-            summary.failures,
-            summary.delivered_count,
-            extra={
-                "stage": "run_complete",
-                "processed": len(summary.results),
-                "approved": summary.count_by_decision(Decision.APPROVE),
-                "rejected": summary.count_by_decision(Decision.REJECT),
-                "revised": summary.count_by_decision(Decision.REVISE),
-                "failed": summary.failures,
-                "delivered": summary.delivered_count,
-                "synthesis_tokens_in": summary.total_input_tokens,
-                "synthesis_tokens_out": summary.total_output_tokens,
-                "judge_tokens_in": summary.total_judge_input_tokens,
-                "judge_tokens_out": summary.total_judge_output_tokens,
-            },
-        )
-
-    # Final user-facing summary banner stays on stdout (presentational).
-    print()
-    print("=" * 70)
-    print(f"RUN SUMMARY  (run_id={run_id})")
-    print("=" * 70)
-    print(f"Processed: {len(summary.results)}")
-    print(f"  Approved: {summary.count_by_decision(Decision.APPROVE)}")
-    print(f"  Rejected: {summary.count_by_decision(Decision.REJECT)}")
-    print(f"  Revised:  {summary.count_by_decision(Decision.REVISE)}")
-    print(f"  Failed:   {summary.failures}")
-    print(f"  Delivered: {summary.delivered_count}")
-    print(
-        f"Synthesis tokens: {summary.total_input_tokens} in, "
-        f"{summary.total_output_tokens} out"
-    )
-    if summary.judged_count > 0:
-        mean_str = (
-            f"{summary.mean_judge_score:.2f}"
-            if summary.mean_judge_score
-            else "n/a"
-        )
-        print(
-            f"Judge tokens:     {summary.total_judge_input_tokens} in, "
-            f"{summary.total_judge_output_tokens} out"
-        )
-        print(
-            f"Judge pass rate:  {summary.judge_pass_count}/{summary.judged_count} "
-            f"(mean score {mean_str})"
-        )
-    print(f"Log file: {log_path}")
-    print()
-
-    return summary
