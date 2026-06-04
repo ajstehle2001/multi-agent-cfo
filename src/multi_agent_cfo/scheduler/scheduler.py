@@ -1,12 +1,12 @@
 """Scheduler: orchestrate memo generation for all configured clients.
 
 Reads client configuration from clients/clients.yaml, runs the full
-Intelligence Layer → LLM-as-judge → Confirmation Gate pipeline for each
-client, and aggregates results (including judge scores) into a run summary.
+Intelligence Layer → LLM-as-judge → Confirmation Gate → Output pipeline
+for each client, and aggregates results into a run summary.
 
-Single-client failures are logged but do not terminate the run. Judge
-failures are non-fatal — the human reviewer still gets the memo, just
-without an automated quality score.
+Single-client failures are logged but do not terminate the run.
+Output failures are also non-fatal — the decision is still recorded;
+only the delivery side-effect is lost.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from multi_agent_cfo.gate.gate import (
 from multi_agent_cfo.intelligence.edgar import EdgarClient
 from multi_agent_cfo.intelligence.llm import LLMClient
 from multi_agent_cfo.intelligence.synthesis import synthesize_memo
+from multi_agent_cfo.output.output import ConsoleOutputAdapter, OutputAdapter
 
 
 DEFAULT_CLIENTS_PATH = Path("clients/clients.yaml")
@@ -52,6 +53,7 @@ class ClientRunResult:
     judge_scores: JudgeScores | None = None
     judge_input_tokens: int = 0
     judge_output_tokens: int = 0
+    delivered: bool = False
 
 
 @dataclass
@@ -89,6 +91,10 @@ class RunSummary:
         scored = [r.judge_scores.mean for r in self.results if r.judge_scores]
         return sum(scored) / len(scored) if scored else None
 
+    @property
+    def delivered_count(self) -> int:
+        return sum(1 for r in self.results if r.delivered)
+
     def count_by_decision(self, decision: Decision) -> int:
         return sum(1 for r in self.results if r.decision == decision)
 
@@ -110,18 +116,22 @@ def load_clients(path: Path = DEFAULT_CLIENTS_PATH) -> list[ClientConfig]:
 def run_scheduler(
     clients_path: Path = DEFAULT_CLIENTS_PATH,
     adapter: ConfirmationAdapter | None = None,
+    output: OutputAdapter | None = None,
 ) -> RunSummary:
-    """Run synthesis + judge + confirmation for every configured client.
+    """Run synthesis + judge + confirmation + output for every client.
 
     Pipeline per client:
       1. SEC EDGAR lookup + Claude synthesis (synthesize_memo)
       2. LLM-as-judge quality scoring (judge_memo) — non-fatal on failure
       3. Human-in-the-loop confirmation (adapter.confirm)
+      4. Output delivery for approved memos only (output.deliver)
 
     Single-client failures are caught and recorded; they don't terminate
-    the run. The aggregate RunSummary is printed at the end and returned.
+    the run. Output failures are also non-fatal — the decision still
+    counts, only the delivery side-effect is lost.
     """
     adapter = adapter or ConsoleAdapter()
+    output = output or ConsoleOutputAdapter()
     clients = load_clients(clients_path)
     summary = RunSummary()
 
@@ -129,8 +139,6 @@ def run_scheduler(
     print(f"Loaded {len(clients)} clients from {clients_path}")
     print()
 
-    # Share EDGAR and LLM client instances across the run for connection
-    # reuse and to take advantage of EdgarClient's cached ticker registry.
     edgar = EdgarClient()
     llm = LLMClient()
 
@@ -153,8 +161,7 @@ def run_scheduler(
                 )
                 continue
 
-            # 2. Judge the memo. Failure here is logged but non-fatal —
-            # human still sees the memo without an automated score.
+            # 2. Judge the memo
             try:
                 judgment = judge_memo(synthesis, llm=llm)
                 pass_label = "PASS" if judgment.scores.passes else "FAIL"
@@ -171,6 +178,17 @@ def run_scheduler(
 
             # 3. Human confirmation gate
             response = adapter.confirm(synthesis)
+            print(f"  Decision: {response.decision.value}")
+
+            # 4. Output delivery for approved memos only
+            delivered = False
+            if response.decision == Decision.APPROVE:
+                try:
+                    output.deliver(synthesis)
+                    delivered = True
+                except Exception as exc:
+                    print(f"  ⚠ Output delivery failed: {exc}")
+
             summary.results.append(
                 ClientRunResult(
                     ticker=client.ticker,
@@ -182,15 +200,14 @@ def run_scheduler(
                     judge_scores=judgment.scores if judgment else None,
                     judge_input_tokens=judgment.judge_input_tokens if judgment else 0,
                     judge_output_tokens=judgment.judge_output_tokens if judgment else 0,
+                    delivered=delivered,
                 )
             )
-            print(f"  Decision: {response.decision.value}")
             print()
 
     finally:
         edgar.close()
 
-    # Print summary
     print("=" * 70)
     print("RUN SUMMARY")
     print("=" * 70)
@@ -199,6 +216,7 @@ def run_scheduler(
     print(f"  Rejected: {summary.count_by_decision(Decision.REJECT)}")
     print(f"  Revised:  {summary.count_by_decision(Decision.REVISE)}")
     print(f"  Failed:   {summary.failures}")
+    print(f"  Delivered: {summary.delivered_count}")
     print(
         f"Synthesis tokens: {summary.total_input_tokens} in, "
         f"{summary.total_output_tokens} out"

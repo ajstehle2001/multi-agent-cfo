@@ -27,7 +27,7 @@ Goal: someone can clone the repo, plug in a Claude API key, run `python -m multi
 
 Goal: every external dependency is swappable, every failure mode has a defined behavior.
 
-- [ ] Adapter interface for output channels (console, file, stub WhatsApp, stub email)
+- [x] Adapter interface for output channels (console, file, stub WhatsApp, stub email) via OutputAdapter Protocol
 - [x] Adapter interface for LLM client via Protocol (Claude default; OpenAI/Bedrock/local pluggable by implementing the LLM Protocol)
 - [ ] Structured logging with correlation IDs
 - [ ] Timeout + retry + circuit breaker on all external calls
