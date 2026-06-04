@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 
 from multi_agent_cfo.intelligence.edgar import CompanyInfo, EdgarClient
-from multi_agent_cfo.intelligence.llm import LLMClient
+from multi_agent_cfo.intelligence.llm import LLM, LLMClient
 
 
 SYNTHESIS_SYSTEM_PROMPT = """You are a fractional CFO producing a concise monthly intelligence memo for the board of directors of a portfolio company.
@@ -77,7 +77,7 @@ def synthesize_memo(
     ticker: str,
     *,
     edgar: EdgarClient | None = None,
-    llm: LLMClient | None = None,
+    llm: LLM | None = None,
 ) -> SynthesisResult:
     """Generate a CFO memo for the given ticker.
 

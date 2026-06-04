@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Protocol
 
 import anthropic
 from dotenv import load_dotenv
@@ -42,6 +43,26 @@ class LLMResponse:
     output_tokens: int
     stop_reason: str
 
+class LLM(Protocol):
+    """Protocol for LLM clients that produce structured completions.
+
+    Any class providing a `complete(*, system, user, max_tokens)` method
+    that returns an LLMResponse satisfies this protocol — including future
+    adapters for OpenAI, Vertex AI, Bedrock, or local models served via
+    Ollama or vLLM.
+
+    The synthesize_memo and judge_memo functions type-hint their `llm`
+    parameter as `LLM` rather than the concrete LLMClient, so swapping
+    the provider requires no changes to caller code.
+    """
+
+    def complete(
+        self,
+        *,
+        system: str,
+        user: str,
+        max_tokens: int | None = None,
+    ) -> LLMResponse: ...
 
 class LLMClient:
     """Thin wrapper around the Anthropic SDK with retry logic.
