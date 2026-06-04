@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Status](https://img.shields.io/badge/status-v0.2-green.svg)](#project-status)
+[![Status](https://img.shields.io/badge/status-v0.3-green.svg)](#project-status)
 
 > A multi-agent platform that generates monthly CFO-style memos for a portfolio of companies — peer-benchmarked against SEC EDGAR data, synthesized by Claude, and gated by human approval before delivery.
 
