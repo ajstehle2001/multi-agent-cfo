@@ -170,8 +170,9 @@ Three things I haven't done in this version but would do for a production deploy
 
 ## The repo
 
-The full codebase is at [github.com/ajstehle2001/multi-agent-cfo](https://github.com/ajstehle2001/multi-agent-cfo). The audit story that motivated this rebuild is at [github.com/ajstehle2001/agent-reliability-audit](https://github.com/ajstehle2001/agent-reliability-audit).
+The full codebase is at [github.com/ajstehle2001/multi-agent-cfo](https://github.com/ajstehle2001/multi-agent-cfo). The audit story that motivated this rebuild is at [github.com/ajstehle2001/agent-reliability-audit](https://github.com/ajstehle2001/agent-reliability-audit). And for the same discipline applied to a quantitative domain, [structural-commodity-monitor](https://github.com/ajstehle2001/structural-commodity-monitor) implements pre-registered statistical testing, signal-decay governance, and LLM data extraction with validation trust boundaries for a commodity fair-value model: the validation philosophy of this post, pointed at a market instead of a memo.
 
 The `docs/ARCHITECTURE.md` and three Architecture Decision Records in `docs/adr/` are where I tried to make the design choices legible to future readers, including future me. Production thinking about LLM systems is still an underdeveloped genre — most online material covers either the latest model release or basic prompt engineering, with very little on what production-grade reliability actually looks like at the application layer. I'm trying to fill some of that gap one repo at a time.
 
-If you're building LLM applications and want to discuss any of this, find me on [your-contact-here].
+If you're building LLM applications and want to discuss any of this, everything I ship is at [github.com/ajstehle2001](https://github.com/ajstehle2001).
+
